@@ -5,7 +5,7 @@ class ChatGPTConfig:
 ####################### OpenAI #######################
 class OpenAIConfig(ChatGPTConfig):
     api_type: str = "openai"
-    api_key: str = "<API_KEY>"
+    api_key: str = "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"
     model: str
     limit: int
     price: float
@@ -28,9 +28,9 @@ class OpenAIGPT4Config(OpenAIConfig):
 
 class AzureConfig(ChatGPTConfig):
     api_type: str = "azure"
-    api_key: str = "<API_KEY>"
+    api_key: str = "BgRXUeusbzVlVKMVQ05BEFkG5fH5HvLWsTiqF8DZVCwgFXa7TCIKJQQJ99BJACYeBjFXJ3w3AAABACOG0kpo"
     api_version: str = "2023-12-01-preview"
-    azure_endpoint: str = "<ENDPOINT>"
+    azure_endpoint: str = "https://research1212.openai.azure.com/"
     model: str
     limit: int
     price: float
