@@ -4,7 +4,7 @@ from orion.utils.gradio_interface import (
     GradioInterface,
     GradioDemoChatGPTControlORION,
 )
-from orion.config.chatgpt_config import AzureGPT4Config
+from orion.config.chatgpt_config import DeepSeekConfig
 
 
 def run_gradio(image_queue, user_message_queue, bot_message_queue):
@@ -30,7 +30,7 @@ def main():
         image_queue=image_queue,
         user_message_queue=user_message_queue,
         bot_message_queue=bot_message_queue,
-        chatgpt_config=AzureGPT4Config(),
+        chatgpt_config=DeepSeekConfig(),
         dump_dir="dump_dir",
         use_stream=True,
         record_interaction=False,

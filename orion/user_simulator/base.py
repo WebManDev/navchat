@@ -40,7 +40,7 @@ class UserSimulatorBase(UserSimulator):
         self,
         scene_id,
         floor_plan,
-        chatgpt_usrsim_config=AzureGPT35Config(), # GPT3.5 is enough for user simulator
+        chatgpt_usrsim_config=DeepSeekConfig(), # GPT3.5 is enough for user simulator
         max_trial=5,
         max_round=5,
         category="mixed",
@@ -271,6 +271,8 @@ class UserSimulatorBase(UserSimulator):
         goal_reached = False
 
         for obj in goal_objs:
+            if obj not in self.topo_graph.all_instance_dict:
+                continue  # Skip missing objects
             ins = self.topo_graph.all_instance_dict[obj]
             dist, angle, is_in_view = self.rel_pose(ins, agtpose)
             logger.info(f"[User Simulator Measure] {dist}, {angle}, {is_in_view}" )
@@ -301,6 +303,8 @@ class UserSimulatorBase(UserSimulator):
         goal_objs = goal.same_goal
         tuple_list = []
         for obj in goal_objs:
+            if obj not in self.topo_graph.all_instance_dict:
+                continue  # Skip missing objects
             ins = self.topo_graph.all_instance_dict[obj]
             dist, angle, is_in_view = self.rel_pose(ins, agtpose)
             tuple_list.append((obj, dist, angle, is_in_view))

@@ -27,7 +27,7 @@ class VLMapSearch(MapSearch):
             VLMAP_QUERY_LIST_BASE
         )  # [num_query, feat_dim]
         if isinstance(text_feat, torch.Tensor):
-            text_feat = text_feat.cpu().numpy()
+            text_feat = text_feat.float().cpu().numpy()
         self.text_feat = text_feat
 
         self.feat_dim = self.feat_values.shape[-1]
@@ -46,7 +46,7 @@ class VLMapSearch(MapSearch):
             query_list
         )  # [num_query, feat_dim]
         if isinstance(text_feat, torch.Tensor):
-            text_feat = text_feat.cpu().numpy()
+            text_feat = text_feat.float().cpu().numpy()
         indices = self.indices  # [num_vxl, 3]
         vision_feat = self.feat_values  # [num_vxl, feat_dim]
         map_shape = self._3dshape  # (num_z, num_x, num_y, feat_dim)

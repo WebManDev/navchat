@@ -25,7 +25,7 @@ def update_fov(config, fov=90):
     config.freeze()
 
 
-def update_scene(config, split="val", scene_ids=["4ok3usBNeis"]):
+def update_scene(config, split="val", scene_ids=["TEEsavR23oF"]):
     config.defrost()
     if split is not None:
         config.DATASET.SPLIT = split

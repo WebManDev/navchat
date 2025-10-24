@@ -37,7 +37,10 @@ class CLIPBase:
         if isinstance(txts, list):
             txts = TextQueries(txts)
         tok = self.tokenizer(txts.prompts).to(self.device)
-        with torch.no_grad(), torch.cuda.amp.autocast():
+        device_type = str(self.device).split(':')[0] if ':' in str(self.device) else str(self.device)
+        if device_type not in ['cuda', 'cpu']:
+            device_type = 'cpu'  # Default to CPU if device type is invalid
+        with torch.no_grad(), torch.autocast(device_type=device_type):
             text_features = self.clip_model.encode_text(tok)
             text_features /= text_features.norm(dim=-1, keepdim=True)
         return text_features
@@ -51,7 +54,10 @@ class CLIPBase:
             image = Image.open(image)
 
         image = self.clip_preprocess(image).unsqueeze(0).to(self.device)
-        with torch.no_grad(), torch.cuda.amp.autocast():
+        device_type = str(self.device).split(':')[0] if ':' in str(self.device) else str(self.device)
+        if device_type not in ['cuda', 'cpu']:
+            device_type = 'cpu'  # Default to CPU if device type is invalid
+        with torch.no_grad(), torch.autocast(device_type=device_type):
             image_features = self.clip_model.encode_image(image)
             image_features /= image_features.norm(dim=-1, keepdim=True)
         return image_features

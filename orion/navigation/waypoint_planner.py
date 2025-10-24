@@ -47,7 +47,7 @@ class PointPlanner:
             # expant a little bit
             _wall_mask = cv2.dilate(_wall_mask, np.ones((1, 1), np.uint8), iterations=1)
             wall_mask = np.logical_and(
-                wall_mask, np.logical_not(_wall_mask.astype(np.bool))
+                wall_mask, np.logical_not(_wall_mask.astype(bool))
             )
 
         while x0 != x1 or y0 != y1:
@@ -78,10 +78,10 @@ class PointPlanner:
 
         start_pt = np.array(
             [cen_x + np.cos(start_theta) * dist, cen_z + np.sin(start_theta) * dist]
-        ).astype(np.int)
+        ).astype(int)
         end_pt = np.array(
             [cen_x + np.cos(end_theta) * dist, cen_z + np.sin(end_theta) * dist]
-        ).astype(np.int)
+        ).astype(int)
         # get all points in  the line using cv2
         tgt_line, _ = PointPlanner.line_search(
             start_pt[0], start_pt[1], end_pt[0], end_pt[1]
@@ -90,10 +90,10 @@ class PointPlanner:
         # steps = int(0.5*np.pi*dist)
         # thetas = np.linspace(start_theta, end_theta, steps)
 
-        # xs = np.round(cen_x + np.cos(thetas) * dist).astype(np.int)
-        # zs = np.round(cen_z + np.sin(thetas) * dist).astype(np.int)
+        # xs = np.round(cen_x + np.cos(thetas) * dist).astype(int)
+        # zs = np.round(cen_z + np.sin(thetas) * dist).astype(int)
 
-        complementary_grd = np.empty((0, 2), dtype=np.int)
+        complementary_grd = np.empty((0, 2), dtype=int)
 
         for tgt_x, tgt_z in tgt_line:
             line, _ = PointPlanner.line_search(

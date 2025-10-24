@@ -8,7 +8,7 @@ import orion.perception.detector.gradcam.CLIP.clip as clip
 
 class CLIPGradCAM:
     def __init__(self):
-        self.device = "cuda" if torch.cuda.is_available() else "cpu"
+        self.device = "mps" if torch.backends.mps.is_available() else "cpu"
         self.model, self.preprocess = clip.load(
             "ViT-B/32", device=self.device, jit=False
         )
@@ -24,7 +24,7 @@ class CLIPGradCAM:
         )
         one_hot[torch.arange(logits_per_image.shape[0]), index] = 1
         one_hot = torch.from_numpy(one_hot).requires_grad_(True)
-        one_hot = torch.sum(one_hot.cuda() * logits_per_image)
+        one_hot = torch.sum(one_hot.to(self.device) * logits_per_image)
         self.model.zero_grad()
 
         image_attn_blocks = list(
@@ -60,7 +60,7 @@ class CLIPGradCAM:
         image_relevance = torch.nn.functional.interpolate(
             image_relevance, size=224, mode="bilinear"
         )
-        image_relevance = image_relevance.reshape(224, 224).cuda().data.cpu().numpy()
+        image_relevance = image_relevance.reshape(224, 224).to(self.device).data.cpu().numpy()
         image_relevance = (image_relevance - image_relevance.min()) / (
             image_relevance.max() - image_relevance.min()
         )

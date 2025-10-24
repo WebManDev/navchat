@@ -4,8 +4,7 @@ from orion.agent_env.chatgpt_control_cow import ChatGPTControlCoW
 from orion.agent_env.chatgpt_control_vlmap import ChatGPTControlVLMap
 from orion.agent_env.hybrid_search import HybridSearchAgentEnv
 from orion.config.chatgpt_config import (
-    AzureGPT35Config,
-    AzureGPT4Config,
+    DeepSeekConfig,
     OpenAIGPT35Config,
     OpenAIGPT4Config,
 )
@@ -13,7 +12,7 @@ from orion.config.chatgpt_config import (
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--api-type", choices=["openai", "azure"], default="azure")
+    parser.add_argument("--api-type", choices=["openai", "deepseek"], default="deepseek")
     parser.add_argument("--model-type", choices=["gpt35", "gpt4"], default="gpt4")
     parser.add_argument("--stream", action="store_true", default=False)
     parser.add_argument("--use_memory", type=bool, default=True)
@@ -43,14 +42,13 @@ if __name__ == "__main__":
             chatgpt_config = OpenAIGPT4Config()  # type: ignore
         else:
             raise ValueError("model_type can only be ['gpt35', 'gpt4']")
-    elif args.api_type == "azure":
+    elif args.api_type == "deepseek":
         if args.model_type == "gpt35":
-            chatgpt_config = AzureGPT35Config()
+            chatgpt_config = DeepSeekConfig()
         elif args.model_type == "gpt4":
-            chatgpt_config = AzureGPT4Config()
+            chatgpt_config = DeepSeekConfig()  # DeepSeek might have different model names
         else:
             raise ValueError("model_type can only be ['gpt35', 'gpt4']")
-
     if args.method_type == "orion":
         is_vlmap_baseline = False
         is_cow_baseline = False

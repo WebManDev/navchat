@@ -34,12 +34,12 @@ class NeuralMemory2D(EpisodicMemory):
         # feat_values: [K, feat_dim]
         # grd_zxs: [K, 2], zx
         if isinstance(feat_val, torch.Tensor):
-            feat_val = feat_val.cpu().numpy()
+            feat_val = feat_val.float().cpu().numpy()
         self._update_grd(feat_val, grd_zxs, self.positive_memory)
 
     def delete(self, feat_val, grd_zxs):
         if isinstance(feat_val, torch.Tensor):
-            feat_val = feat_val.cpu().numpy()
+            feat_val = feat_val.float().cpu().numpy()
         self._update_grd(feat_val, grd_zxs, self.negative_memory)
 
     def update(self, neg_feat_val, tgt_feat_val, grd_zxs):
@@ -110,7 +110,7 @@ class NeuralMemory2D(EpisodicMemory):
 
     def _vlmatch(self, memory: SparseMem2D, feat_emb):
         if isinstance(feat_emb, torch.Tensor):
-            feat_emb = feat_emb.cpu().numpy()
+            feat_emb = feat_emb.float().cpu().numpy()
         feat_emb = feat_emb.reshape(-1, self.feat_dim)
         vlmatch = np.zeros((self.num_grid, self.num_grid), dtype=np.uint8)
         if len(memory.indices) > 0:

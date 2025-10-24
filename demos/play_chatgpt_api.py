@@ -2,14 +2,13 @@ import argparse
 
 from orion.chatgpt.api import ChatAPI
 from orion.config.chatgpt_config import (
-    AzureGPT4Config,
-    AzureGPT35Config,
+    DeepSeekConfig,
     OpenAIGPT4Config,
     OpenAIGPT35Config,
 )
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--api-type", choices=["openai", "azure"], default="azure")
+parser.add_argument("--api-type", choices=["openai", "deepseek"], default="deepseek")
 parser.add_argument("--model-type", choices=["gpt35", "gpt4"], default="gpt4")
 parser.add_argument("--stream", action="store_true", default=False)
 
@@ -22,13 +21,14 @@ if args.api_type == "openai":
         chat_api = ChatAPI(config=OpenAIGPT4Config())
     else:
         raise ValueError("model_type can only be ['gpt35', 'gpt4']")
-elif args.api_type == "azure":
+elif args.api_type == "deepseek":
     if args.model_type == "gpt35":
-        chat_api = ChatAPI(config=AzureGPT35Config())
+        chat_api = ChatAPI(config=DeepSeekConfig())
     elif args.model_type == "gpt4":
-        chat_api = ChatAPI(config=AzureGPT4Config())
+        chat_api = ChatAPI(config=DeepSeekConfig())
     else:
         raise ValueError("model_type can only be ['gpt35', 'gpt4']")
+
 
 while True:
     utter = input("\nUser>>>")

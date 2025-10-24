@@ -102,14 +102,9 @@ class HabitatAgentEnv(AgentEnv):
             }
             self.record_save_dir = os.path.join(self.save_dir, record_dir)
             if os.path.exists(self.record_save_dir):
-                u = input(
-                    f"record dir  {self.record_save_dir} already exists, do you want to overwrite? (y/n)"
-                )
-                if u == "n":
-                    assert False, f"record dir already exists {self.record_save_dir}"
-                else:
-                    shutil.rmtree(self.record_save_dir)
-                    os.makedirs(self.record_save_dir)
+                print(f"record dir  {self.record_save_dir} already exists, overwriting...")
+                shutil.rmtree(self.record_save_dir)
+                os.makedirs(self.record_save_dir)
             else:
                 os.makedirs(self.record_save_dir)
 
@@ -667,6 +662,7 @@ class HabitatAgentEnv(AgentEnv):
 
     def _load_semantic_annoations(self, split):
         scene_data_path = f"data/scene_datasets/hm3d_v0.2/{split}"
+        semantic_path = None
         for d in os.listdir(scene_data_path):
             if os.path.isdir(os.path.join(scene_data_path, d)):
                 for file in os.listdir(os.path.join(scene_data_path, d)):
@@ -691,23 +687,27 @@ class HabitatAgentEnv(AgentEnv):
             label_dic[l] = len(label_dic)
 
         obj2cls_dic = {}
-        with open(semantic_path, "r") as f:
-            for line in f.readlines():
-                line = line.strip()
-                if line == "HM3D Semantic Annotations":
-                    continue
-                object_id, _, label, _ = line.split(",")
-                label = label.strip('"')
-                if label in label_dic:
-                    obj2cls_dic[int(object_id)] = (label_dic[label], label)
-                else:
-                    if label == "unknown":
-                        obj2cls_dic[int(object_id)] = (label_dic["misc"], "misc")
-                    elif len(label.split()) >= 3:
-                        obj2cls_dic[int(object_id)] = (label_dic["misc"], "misc")
-                    else:
-                        label_dic[label] = len(label_dic)
+        if semantic_path and os.path.exists(semantic_path):
+            with open(semantic_path, "r") as f:
+                for line in f.readlines():
+                    line = line.strip()
+                    if line == "HM3D Semantic Annotations":
+                        continue
+                    object_id, _, label, _ = line.split(",")
+                    label = label.strip('"')
+                    if label in label_dic:
                         obj2cls_dic[int(object_id)] = (label_dic[label], label)
+                    else:
+                        if label == "unknown":
+                            obj2cls_dic[int(object_id)] = (label_dic["misc"], "misc")
+                        elif len(label.split()) >= 3:
+                            obj2cls_dic[int(object_id)] = (label_dic["misc"], "misc")
+                        else:
+                            label_dic[label] = len(label_dic)
+                            obj2cls_dic[int(object_id)] = (label_dic[label], label)
+        else:
+            # If no semantic file, create empty mapping
+            print(f"Warning: No semantic annotation file found for scene {self.scene_id}")
 
         return obj2cls_dic
 

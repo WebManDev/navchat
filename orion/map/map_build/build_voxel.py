@@ -142,7 +142,7 @@ class VoxelMapBuilder:
         else:
             indices = self.vxlmap.indices
             feat_values = self.vxlmap.feat_values
-            count_values = self.vxlmap.vxl_count
+            count_values = self.vxlmap.count_values
             rgb_values = self.vxlmap.rgb_values
             gt_values = self.vxlmap.gt_values
 

@@ -22,7 +22,7 @@ clip_extractor = CLIPBase(CLIPConfig_vitB32_openai(device="cpu"))
 
 text_list = VLMAP_QUERY_LIST_BASE + ["dog", "cat", "grass", "tree"]
 text_feat = clip_extractor.encode_text(TextQueries(text_list))
-text_feat = text_feat.cpu().numpy()
+text_feat = text_feat.cpu().float().numpy()
 print("text feature size: ", text_feat.shape)
 
 with torch.no_grad():

@@ -146,9 +146,11 @@ if __name__ == "__main__":
     import argparse
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("--scene_id", type=str, default="4ok3usBNeis")
-    parser.add_argument("--floor_b", type=int, default=-1)
-    parser.add_argument("--floor_u", type=int, default=1)
+    parser.add_argument("--scene_id", type=str, default="TEEsavR23oF")
+    parser.add_argument("--floor_b", type=int, default=2)
+    parser.add_argument("--floor_u", type=int, default=5)
+    #     parser.add_argument("--floor_b", type=int, default=-1)
+   #      parser.add_argument("--floor_u", type=int, default=1)
     parser.add_argument("--category", type=str, default="mixed", choices=["landmark", "instruction", "description", "correction", "mixed", "none"])
     args = parser.parse_args()
 
@@ -160,8 +162,8 @@ if __name__ == "__main__":
     use_explore=True
     clear_gptctx=False
 
-    chatgpt_config=AzureGPT4Config()
-    chatgpt_usrsim_config=AzureGPT35Config()
+    chatgpt_config=DeepSeekConfig()
+    chatgpt_usrsim_config=DeepSeekConfig()
 
     game = ChatGPTControlAndUserSim(
         max_trial=max_trial,

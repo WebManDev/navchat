@@ -50,7 +50,7 @@ class CLIPConfig:
     ViT-L/14 79.2% datacomp_xl_s13b_b90k
     """
 
-    device: str = torch.device("cuda:0")  # default
+    device: str = "mps" if torch.backends.mps.is_available() else "cpu"  # default
     clip_version: str = "ViT-B-16"  # default
     openclip_pretained: str = "openai"  # default
     height: int = 480
@@ -77,7 +77,7 @@ class CLIPConfig_vitL14_datacomp(CLIPConfig):
 
 @define
 class LsegConfig(CLIPConfig):
-    device: str = torch.device("cuda:0")  # has to be cuda
+    device: str = torch.device("cpu")  # using cpu for compatibility
     # vision backbone: ViT-L/16, text encoder: CLIP ViT-B/32
     ckpt_path: str = "data/pretrained_ckpts/lseg_demo_e200.ckpt"
     clip_version: str = "ViT-B-32"

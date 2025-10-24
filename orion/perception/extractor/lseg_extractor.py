@@ -21,7 +21,7 @@ class LSegExtractor(PerceptionModule):
         )
 
         model_state_dict = model.state_dict()
-        pretrained_state_dict = torch.load(cfg.ckpt_path)
+        pretrained_state_dict = torch.load(cfg.ckpt_path, weights_only=False, map_location=torch.device('cpu'))
         pretrained_state_dict = {
             k.lstrip("net."): v for k, v in pretrained_state_dict["state_dict"].items()
         }

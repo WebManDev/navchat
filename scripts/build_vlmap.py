@@ -27,7 +27,7 @@ def build_vlmap_one_scene(root_dir, feature_type):
         data_dir=os.path.join(root_dir, "recordings"),
         mapcfg=MapConfig(),
     )
-
+   
     for idx in tqdm(range(len(dataloader))):
         obs = dataloader[idx]
         map_builder.build(obs)
@@ -98,7 +98,7 @@ if __name__ == "__main__":
     argparser.add_argument(
         "--scene_id",
         type=str,
-        default="4ok3usBNeis",
+        default="TEEsavR23oF",
         help="scene id, either 'all' or a specific scene id in SCENE_ID_FLOOR_SET",
     )
     argparser.add_argument(

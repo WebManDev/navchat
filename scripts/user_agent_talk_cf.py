@@ -147,7 +147,7 @@ if __name__ == "__main__":
     import argparse
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("--scene_id", type=str, default="4ok3usBNeis")
+    parser.add_argument("--scene_id", type=str, default="TEEsavR23oF")
     parser.add_argument("--floor_b", type=int, default=-1)
     parser.add_argument("--floor_u", type=int, default=1)
     parser.add_argument("--category", type=str, default="mixed", choices=["landmark", "instruction", "description", "correction", "mixed", "none"])

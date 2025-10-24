@@ -1,3 +1,5 @@
+from attrs import define
+
 class ChatGPTConfig:
     pass
 
@@ -23,26 +25,10 @@ class OpenAIGPT4Config(OpenAIConfig):
     price: float = 0.01
 
 
-####################### Azure #######################
-
-
-class AzureConfig(ChatGPTConfig):
-    api_type: str = "azure"
-    api_key: str = "BgRXUeusbzVlVKMVQ05BEFkG5fH5HvLWsTiqF8DZVCwgFXa7TCIKJQQJ99BJACYeBjFXJ3w3AAABACOG0kpo"
-    api_version: str = "2023-12-01-preview"
-    azure_endpoint: str = "https://research1212.openai.azure.com/"
-    model: str
-    limit: int
-    price: float
-
-
-class AzureGPT35Config(AzureConfig):
-    model: str = "gpt-35-turbo-16k-0613"
-    limit: int = 16000
-    price: float = 0.0005
-
-
-class AzureGPT4Config(AzureConfig):
-    model: str = "gpt-4-0125-preview"
-    limit: int = 128000
-    price: float = 0.01
+####################### DeepSeek #######################
+@define
+class DeepSeekConfig:
+    api_key: str = "sk-22d391f1036849cc9846287e55506a54"
+    model: str = "deepseek-chat"  # or whatever DeepSeek's model name is
+    limit: int = 32000
+    price: float = 0.0001
