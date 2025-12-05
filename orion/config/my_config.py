@@ -227,6 +227,121 @@ ROOMS = [
     "living room",
 ]  # only bedromm and bathroom can be multiple in persona
 
+# Dictionary mapping objects to likely rooms
+# Used for goToRoom functionality - helps determine which room to navigate to
+OBJECT_TO_ROOMS = {
+    # Bedroom objects
+    "bed": ["bedroom"],
+    "nightstand": ["bedroom"],
+    "dresser": ["bedroom"],
+    "wardrobe": ["bedroom"],
+    "bedside lamp": ["bedroom"],
+    "table lamp": ["bedroom"],
+    "shoe": ["bedroom", "closet", "hallway"],
+    "shoes": ["bedroom", "closet", "hallway"],
+    "clothes": ["bedroom", "closet"],
+    "pillow": ["bedroom"],
+    "blanket": ["bedroom"],
+    "closet": ["bedroom", "hallway"],
+    "mirror": ["bedroom", "bathroom"],
+    "armchair": ["bedroom", "living room"],
+    "lounge chair": ["bedroom", "living room"],
+    
+    # Bathroom objects
+    "toilet": ["bathroom"],
+    "bathtub": ["bathroom"],
+    "shower": ["bathroom"],
+    "sink": ["bathroom", "kitchen"],
+    "bathroom cabinet": ["bathroom"],
+    "bathroom counter": ["bathroom"],
+    "towel": ["bathroom"],
+    "towel rack": ["bathroom"],
+    "bathroom mirror": ["bathroom"],
+    "soap": ["bathroom"],
+    "toilet paper": ["bathroom"],
+    
+    # Kitchen objects
+    "refrigerator": ["kitchen"],
+    "fridge": ["kitchen"],
+    "freezer": ["kitchen"],
+    "oven": ["kitchen"],
+    "stove": ["kitchen"],
+    "microwave": ["kitchen"],
+    "kitchen cabinet": ["kitchen"],
+    "kitchen counter": ["kitchen"],
+    "kitchen shelf": ["kitchen"],
+    "cabinet": ["kitchen", "bathroom", "living room"],
+    "sink": ["kitchen", "bathroom"],
+    "dishwasher": ["kitchen"],
+    "dish": ["kitchen"],
+    "bowl": ["kitchen"],
+    "cupboard": ["kitchen"],
+    "pantry": ["kitchen"],
+    "trashcan": ["kitchen", "bathroom"],
+    "garbage can": ["kitchen"],
+    "cutting board": ["kitchen"],
+    "knife": ["kitchen"],
+    
+    # Living room objects
+    "couch": ["living room"],
+    "sofa": ["living room"],
+    "tv": ["living room", "bedroom"],
+    "led tv": ["living room", "bedroom"],
+    "television": ["living room", "bedroom"],
+    "coffee table": ["living room"],
+    "side table": ["living room"],
+    "end table": ["living room"],
+    "table": ["living room", "dining room", "kitchen", "bedroom"],
+    "carpet": ["living room"],
+    "rug": ["living room"],
+    "fireplace": ["living room"],
+    "lamp": ["living room", "bedroom"],
+    "bookshelf": ["living room", "bedroom", "office room"],
+    "shelf": ["living room", "bedroom", "kitchen"],
+    "rack": ["living room", "bedroom"],
+    "speaker": ["living room"],
+    "stereo": ["living room"],
+    "recliner": ["living room"],
+    "ottoman": ["living room"],
+    "pouffe": ["living room"],
+    "chair": ["living room", "bedroom", "dining room", "office room"],
+    "desk": ["living room", "bedroom", "office room"],
+    "computer desk": ["living room", "office room", "bedroom"],
+    "computer": ["living room", "office room", "bedroom"],
+    "printer": ["living room", "office room"],
+    "plant": ["living room", "bedroom", "bathroom"],
+    "picture": ["living room", "bedroom"],
+    "painting": ["living room", "bedroom"],
+    "clock": ["living room", "bedroom", "kitchen"],
+    "newspaper": ["living room"],
+    "magazine": ["living room"],
+    "telephone": ["living room", "bedroom", "kitchen"],
+    "bicycle": ["living room", "hallway", "garage"],
+    
+    # Dining room objects (if exists)
+    "dining table": ["dining room", "living room", "kitchen"],
+    "dining chair": ["dining room"],
+    
+    # Office/Study objects
+    "desk": ["office room", "bedroom", "living room"],
+    "office chair": ["office room"],
+    "bookshelf": ["office room", "living room"],
+    "computer": ["office room", "living room"],
+    "printer": ["office room", "living room"],
+    
+    # Laundry objects
+    "laundry machine": ["laundry room", "bathroom", "kitchen"],
+    "washer": ["laundry room", "bathroom", "kitchen"],
+    "dryer": ["laundry room", "bathroom", "kitchen"],
+    "washing machine": ["laundry room", "bathroom", "kitchen"],
+    
+    # Other common objects
+    "bench": ["living room", "bedroom", "hallway"],
+    "stool": ["kitchen", "bedroom", "living room"],
+    "cabinet": ["kitchen", "bathroom", "living room", "bedroom"],
+    "display cabinet": ["living room"],
+}
+
 # Names, companies, years, materials are used to generate the user's persona
 NAMES = [
     "Alice",

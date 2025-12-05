@@ -486,6 +486,9 @@ class ChatGPTControlVLMap(ChatGPTControlBase):
         return_msg = f"Update current ego-view information: {return_tuple_list_str}"
         return return_msg
 
+    def goToRoom(self, target: str, prompt: str):
+        return "Go to the room. Based on the object location, go to the room. Ask Deepseek"
+
     def process_search_object(self, target: str, prompt: str):
         # using frontier-based exploration to search the object around the room
 

@@ -151,6 +151,7 @@ if __name__ == "__main__":
     parser.add_argument("--floor_u", type=int, default=5)
     #     parser.add_argument("--floor_b", type=int, default=-1)
    #      parser.add_argument("--floor_u", type=int, default=1)
+   # I guess that scene doesn't have floors -1 and 1, it's for a different scene.
     parser.add_argument("--category", type=str, default="mixed", choices=["landmark", "instruction", "description", "correction", "mixed", "none"])
     args = parser.parse_args()
 
@@ -162,9 +163,9 @@ if __name__ == "__main__":
     use_explore=True
     clear_gptctx=False
 
-    chatgpt_config=DeepSeekConfig()
-    chatgpt_usrsim_config=DeepSeekConfig()
-
+    from orion.config.chatgpt_config import LocalModelConfig
+    chatgpt_config = LocalModelConfig()
+    chatgpt_usrsim_config = LocalModelConfig()
     game = ChatGPTControlAndUserSim(
         max_trial=max_trial,
         max_round=max_round,

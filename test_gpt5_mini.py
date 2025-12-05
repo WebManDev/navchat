@@ -3,6 +3,7 @@
 Test GPT-5-mini deployment for ORION
 """
 
+import os
 import requests
 import json
 
@@ -10,7 +11,10 @@ def test_gpt5_mini():
     """Test GPT-5-mini deployment"""
     print("🚀 Testing GPT-5-mini deployment...")
     
-    api_key = "BgRXUeusbzVlVKMVQ05BEFkG5fH5HvLWsTiqF8DZVCwgFXa7TCIKJQQJ99BJACYeBjFXJ3w3AAABACOG0kpo"
+    api_key = os.getenv("AZURE_OPENAI_API_KEY", "")  # Set via environment variable
+    if not api_key:
+        print("❌ AZURE_OPENAI_API_KEY environment variable not set")
+        return False
     endpoint = "https://research1212.openai.azure.com/"
     deployment_name = "gpt-5-mini"
     

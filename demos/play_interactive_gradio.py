@@ -39,8 +39,8 @@ def main():
         fast_explore=True,
         display_shortside=480,
         save_dir_name="predict",
-        scene_ids=["4ok3usBNeis"],
-        floor_set=(-1, 1),
+        scene_ids=["TEEsavR23oF"],  # Changed to available scene
+        floor_set=(2, 5),  # Updated floor range for TEEsavR23oF
         auto_record=False,
         display_setting="rgb+topdownmap",
         display_horizontally=False,
@@ -56,4 +56,7 @@ def main():
 
 
 if __name__ == "__main__":
+    import multiprocessing
+    # Fix macOS multiprocessing issue
+    multiprocessing.set_start_method("spawn", force=True)
     main()

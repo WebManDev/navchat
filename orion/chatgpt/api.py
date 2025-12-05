@@ -6,13 +6,12 @@ import requests
 from openai import OpenAI
 
 from orion import logger
-from orion.config.chatgpt_config import DeepSeekConfig, OpenAIConfig
-
+from orion.config.chatgpt_config import DeepSeekConfig, OpenAIConfig, LocalModelConfig
 
 class ChatAPI:
     def __init__(
         self,
-        config: Union[OpenAIConfig, DeepSeekConfig],
+        config: Union[OpenAIConfig, DeepSeekConfig, LocalModelConfig ],
     ):
         self.messages: List[Dict[str, str]] = []
         self.history: List[Dict[str, str]] = []
@@ -22,6 +21,10 @@ class ChatAPI:
             self.client = None
             self.api_key = config.api_key
             self.api_url = "https://api.deepseek.com/v1/chat/completions"
+        elif isinstance(config, LocalModelConfig):
+            self.client = None
+            self.api_key = config.api_key
+            self.api_url = config.api_url  # This is the URL of my local model server
         elif isinstance(config, OpenAIConfig):
             self.client = OpenAI(api_key=config.api_key)
         else:
@@ -70,7 +73,23 @@ class ChatAPI:
                 response_message = response_data["choices"][0]["message"]
                 usage_tokens = response_data["usage"]["total_tokens"]
                 message_content = response_message["content"]
-            else:
+            elif isinstance(self.config, LocalModelConfig):
+                # Same as DeepSeek - just uses different api_url
+                headers = {
+                    "Authorization": f"Bearer {self.api_key}",
+                    "Content-Type": "application/json"
+                }
+                data = {
+                    "model": self.model,
+                    "messages": self.messages
+                }
+                response = requests.post(self.api_url, headers=headers, json=data)
+                response.raise_for_status()
+                response_data = response.json()
+                response_message = response_data["choices"][0]["message"]
+                usage_tokens = response_data["usage"]["total_tokens"]
+                message_content = response_message["content"]
+            elif isinstance(self.config, OpenAIConfig):
                 # OpenAI API call (existing code)
                 response = self.client.chat.completions.create(
                     model=self.model, messages=self.messages

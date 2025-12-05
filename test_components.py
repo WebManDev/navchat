@@ -54,10 +54,15 @@ def test_openai():
     """Test OpenAI API"""
     print("🤖 Testing OpenAI API...")
     try:
+        import os
         from openai import OpenAI
         
         # Test with a simple API call
-        client = OpenAI(api_key="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")
+        api_key = os.getenv("OPENAI_API_KEY", "")
+        if not api_key:
+            print("❌ OPENAI_API_KEY environment variable not set")
+            return False
+        client = OpenAI(api_key=api_key)
         
         response = client.chat.completions.create(
             model="gpt-3.5-turbo",

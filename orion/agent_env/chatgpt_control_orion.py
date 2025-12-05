@@ -141,7 +141,35 @@ class ChatGPTControlORION(ChatGPTControlBase):
                     return "Please provide 'target' argument for `search_object` API"
                 if "prompt" not in cmd["args"]:
                     return "Please provide 'prompt' argument for `search_object` API"
+                # Use frontier-based exploration to search for the object
                 return self.process_search_object(
+                    cmd["args"]["target"], cmd["args"]["prompt"]
+                )
+            elif cmd["name"] == "goToRoom":
+                if "target" not in cmd["args"]:
+                    return "Please provide 'target' argument for `goToRoom` API"
+                if "prompt" not in cmd["args"]:
+                    return "Please provide 'prompt' argument for `goToRoom` API"
+                # Navigate to the room where the object is likely located
+                return self.goToRoom(
+                    cmd["args"]["target"], cmd["args"]["prompt"]
+                )
+            elif cmd["name"] == "callLLM":
+                if "target" not in cmd["args"]:
+                    return "Please provide 'target' argument for `callLLM` API"
+                if "prompt" not in cmd["args"]:
+                    return "Please provide 'prompt' argument for `callLLM` API"
+                # Navigate to the room where the object is likely located
+                return self.callLLM(
+                    cmd["args"]["target"], cmd["args"]["prompt"]
+                )
+            elif cmd["name"] == "semanticSimilarityProb":
+                if "target" not in cmd["args"]:
+                    return "Please provide 'target' argument for `semanticSimilarityProb` API"
+                if "prompt" not in cmd["args"]:
+                    return "Please provide 'prompt' argument for `semanticSimilarityProb` API"
+                # Use semantic similarity and probability to decide which room to navigate to
+                return self.semanticSimilarityProb(
                     cmd["args"]["target"], cmd["args"]["prompt"]
                 )
             elif cmd["name"] == "update_egoview_info":
@@ -486,9 +514,9 @@ class ChatGPTControlORION(ChatGPTControlBase):
 
         if nothing_found:
             if REAL_USER:
-                return_msg += "You can ask user to provide more hints, like nearby object, rough locations, more detailed descriptions, or try to retrieve typical objects related to the target based on commonsense by yourself, or `search_object` to find."
+                return_msg += "You can ask user to provide more hints, like nearby object, rough locations, more detailed descriptions, or try to retrieve typical objects related to the target based on commonsense by yourself. Alternatively, you have four navigation options: (a) `goToRoom` - use dictionary-based room selection, (b) `callLLM` - use LLM reasoning to decide which room, (c) `semanticSimilarityProb` - use statistical probability and semantic matching, or (d) `search_object` - use frontier-based exploration to search systematically."
             else:
-                return_msg += "You can try to retrieve typical objects related to the target based on commonsense, or `search_object` to find."
+                return_msg += "You can try to retrieve typical objects related to the target based on commonsense. Alternatively, you have four navigation options: (a) `goToRoom` - use dictionary-based room selection, (b) `callLLM` - use LLM reasoning to decide which room, (c) `semanticSimilarityProb` - use statistical probability and semantic matching, or (d) `search_object` - use frontier-based exploration to search systematically."
         else:
             return_msg += "You can try to `goto_object` to the retrieved object one by one to check"
 
@@ -810,7 +838,256 @@ class ChatGPTControlORION(ChatGPTControlBase):
         return_tuple_list_str = json.dumps(return_tuple_list).replace('"', "")
         return_msg = f"Update current ego-view information: {return_tuple_list_str}"
         return return_msg
+    def callLLM(self, target: str, prompt: str):
+        from orion.chatgpt.api import ChatAPI
+        
+        available_rooms = list(self.room_memory.keys()) if self.room_memory else []
+        if not available_rooms:
+            return "No rooms in memory yet. Please use `search_object` to explore and `update_room` to save room locations first."
+        
+        target_normalized = target.lower().strip()
+        dict_suggestions = OBJECT_TO_ROOMS.get(target_normalized, [])
+        
+        llm_prompt = f"""
+You are helping a robot navigate to find an object.
 
+Context:
+- Target object: {target}
+- Description: {prompt}
+- Available rooms in memory: {', '.join(available_rooms)}
+- Dictionary suggests: {', '.join(dict_suggestions) if dict_suggestions else 'No dictionary entry'}
+
+Question: Which room should the robot navigate to find "{target}"?
+
+Respond with ONLY the room name (e.g., "bedroom", "kitchen", "living room").
+"""
+        
+        try:
+            llm_config = self.chatgpt.config
+            llm_decision = ChatAPI(config=llm_config)
+            llm_decision.messages = [
+                {"role": "system", "content": "You are a room navigation assistant. Respond with only room names."},
+                {"role": "user", "content": llm_prompt}
+            ]
+            llm_response = llm_decision.get_system_response()
+            
+            # Parse response to extract room name
+            room_name = None
+            response_clean = llm_response.strip().lower()
+            for room in available_rooms:
+                if room.lower() in response_clean or response_clean in room.lower():
+                    room_name = room
+                    break
+            
+            if not room_name:
+                return f"LLM suggested '{llm_response}', but this doesn't match any available rooms. Available: {', '.join(available_rooms)}. Please use `goToRoom` or `search_object` instead."
+            
+            # Navigate to room
+            pose = self.room_memory[room_name]
+            dist, angle = self._grdview2egoview(pose)
+            return_msg = self.process_goto_points(points=[[dist, angle]], detect_on=True)
+            
+            if "Already reached" in return_msg or "reached" in return_msg.lower():
+                return (
+                    f"LLM suggested navigating to {room_name} for '{target}'. "
+                    f"Successfully navigated. {return_msg} "
+                    f"You can now use `detect_object` or `rotate(angle=360, detect_on=True)` to search for '{target}'."
+                )
+            return return_msg
+            
+        except Exception as e:
+            logger.error(f"Error in callLLM: {e}")
+            return f"Failed to call LLM for room decision. Error: {str(e)}. Please use `goToRoom` or `search_object` instead."
+    
+    def semanticSimilarityProb(self, target: str, prompt: str):
+        """
+        Use semantic similarity and probability calculations to decide which room to navigate to.
+        Combines object-room matching scores with statistical probabilities.
+        """
+        # Get available rooms
+        available_rooms = list(self.room_memory.keys()) if self.room_memory else []
+        if not available_rooms:
+            return "No rooms in memory yet. Please use `search_object` to explore and `update_room` to save room locations first."
+        
+        # Normalize target name
+        target_normalized = target.lower().strip()
+        
+        # Calculate match scores for each room
+        room_scores = {}
+        
+        for room in available_rooms:
+            # Get dictionary-based match score
+            dict_score = self._calculate_dictionary_match(target_normalized, room)
+            
+            # Get statistical match score (if statistics exist)
+            stat_score = self._calculate_statistical_match(room, target_normalized)
+            
+            # Combine scores (weighted combination)
+            # Dictionary: 0.6 weight, Statistics: 0.4 weight
+            total_score = (0.6 * dict_score) + (0.4 * stat_score)
+            
+            room_scores[room] = total_score
+        
+        # Find room with highest match score
+        if not room_scores or max(room_scores.values()) == 0:
+            return (
+                f"Could not calculate match scores for '{target}'. "
+                f"Available rooms: {', '.join(available_rooms)}. "
+                f"Please use `goToRoom`, `callLLM`, or `search_object` instead."
+            )
+        
+        best_room = max(room_scores.items(), key=lambda x: x[1])[0]
+        best_score = room_scores[best_room]
+        
+        # Navigate to best matching room
+        pose = self.room_memory[best_room]
+        dist, angle = self._grdview2egoview(pose)
+        
+        return_msg = self.process_goto_points(
+            points=[[dist, angle]], 
+            detect_on=True
+        )
+        
+        if "Already reached" in return_msg or "reached" in return_msg.lower():
+            return (
+                f"Semantic similarity probability suggests '{best_room}' (match score: {best_score:.2f}) for '{target}'. "
+                f"Successfully navigated. {return_msg} "
+                f"You can now use `detect_object` or `rotate(angle=360, detect_on=True)` to search for '{target}'."
+            )
+        return return_msg
+    
+    def _calculate_dictionary_match(self, target: str, room: str) -> float:
+        """
+        Calculate dictionary-based match score between object and room.
+        Returns score from 0.0 to 1.0.
+        """
+        # Get dictionary suggestions for this object
+        dict_rooms = OBJECT_TO_ROOMS.get(target, [])
+        
+        # Try singular/plural variations
+        if not dict_rooms:
+            if target.endswith('s'):
+                dict_rooms = OBJECT_TO_ROOMS.get(target[:-1], [])
+            else:
+                dict_rooms = OBJECT_TO_ROOMS.get(target + 's', [])
+        
+        # If room is in dictionary list, calculate score
+        if room in dict_rooms:
+            # If multiple rooms, distribute score
+            # More rooms = lower score per room (object can be in multiple places)
+            if len(dict_rooms) == 1:
+                return 1.0  # Only one room = perfect match
+            else:
+                # Multiple rooms: base score divided by number of options
+                base_score = 1.0 / len(dict_rooms)
+                # But if it's first in list, give it higher score
+                room_index = dict_rooms.index(room)
+                if room_index == 0:
+                    return base_score * 1.5  # Boost first option
+                return base_score
+        
+        # Room not in dictionary
+        return 0.0
+    
+    def _calculate_statistical_match(self, room: str, target: str) -> float:
+        """
+        Calculate statistical match score based on search history.
+        Returns score from 0.0 to 1.0, or 0.5 if no data exists.
+        """
+        # Initialize statistics if not exists
+        if not hasattr(self, 'room_object_statistics'):
+            self.room_object_statistics = {}
+        
+        if room not in self.room_object_statistics:
+            self.room_object_statistics[room] = {}
+        
+        if target not in self.room_object_statistics[room]:
+            # No statistics yet - return neutral score
+            return 0.5
+        
+        stats = self.room_object_statistics[room][target]
+        
+        # Need minimum searches to trust statistics
+        if stats.get("total_searches", 0) < 3:
+            return 0.5  # Not enough data
+        
+        # Calculate probability from statistics
+        found_count = stats.get("found_count", 0)
+        total_searches = stats.get("total_searches", 0)
+        
+        if total_searches == 0:
+            return 0.5
+        
+        # Statistical match score = success rate
+        stat_score = found_count / total_searches
+        
+        # Apply confidence weighting (more searches = higher confidence)
+        confidence = min(1.0, total_searches / 10.0)  # Max confidence at 10+ searches
+        weighted_score = 0.5 + (stat_score - 0.5) * confidence
+        
+        return weighted_score
+   
+    def goToRoom(self, target: str, prompt: str):
+        """
+        Navigate to the room where the target object is likely located.
+        Uses OBJECT_TO_ROOMS dictionary to determine which room to go to.
+        """
+        # Normalize target name (lowercase, handle plurals)
+        target_normalized = target.lower().strip()
+        
+        # Look up object in dictionary
+        likely_rooms = OBJECT_TO_ROOMS.get(target_normalized, [])
+        
+        # If not found, try singular/plural variations
+        if not likely_rooms:
+            if target_normalized.endswith('s'):
+                likely_rooms = OBJECT_TO_ROOMS.get(target_normalized[:-1], [])
+            else:
+                likely_rooms = OBJECT_TO_ROOMS.get(target_normalized + 's', [])
+        
+        # If still not found, return error message
+        if not likely_rooms:
+            return (
+                f"Could not determine which room contains '{target}'. "
+                f"Please use `search_object` or `retrieve_memory` to find the object location."
+            )
+        
+        # Check which rooms exist in room_memory
+        available_rooms = []
+        for room in likely_rooms:
+            if room in self.room_memory:
+                available_rooms.append(room)
+        
+        # If no rooms in memory, suggest using search_object
+        if not available_rooms:
+            rooms_list = ", ".join(likely_rooms)
+            return (
+                f"'{target}' is typically found in: {rooms_list}. "
+                f"However, none of these rooms are in memory yet. "
+                f"Please use `search_object` to explore and find the object, or `update_room` to save a room location first."
+            )
+        
+        # Navigate to the first available room
+        room_to_go = available_rooms[0]
+        pose = self.room_memory[room_to_go]
+        dist, angle = self._grdview2egoview(pose)
+        
+        # Navigate to the room
+        return_msg = self.process_goto_points(
+            points=[[dist, angle]], 
+            detect_on=True
+        )
+        
+        # Add context about what room we're going to
+        if "Already reached" in return_msg or "reached" in return_msg.lower():
+            return (
+                f"Navigated to {room_to_go} where '{target}' is likely located. "
+                f"{return_msg} "
+                f"You can now use `detect_object` or `rotate(angle=360, detect_on=True)` to search for '{target}'."
+            ) 
+        else:
+            return return_msg
+            #It be good to include where the LLM has generated the dictionary. (Which file? How do you prompt the LLM to generate the dictionary?)
     def process_search_object(self, target: str, prompt: str):
         # using frontier-based exploration to search the object around the room
 
