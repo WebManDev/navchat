@@ -4,6 +4,7 @@ import json
 import re
 import uuid
 from typing import Any, List, Optional, Tuple
+import torch
 
 import cv2
 import numpy as np
@@ -163,13 +164,13 @@ class ChatGPTControlORION(ChatGPTControlBase):
                 return self.callLLM(
                     cmd["args"]["target"], cmd["args"]["prompt"]
                 )
-            elif cmd["name"] == "semanticSimilarityProb":
+            elif cmd["name"] == "clip":
                 if "target" not in cmd["args"]:
-                    return "Please provide 'target' argument for `semanticSimilarityProb` API"
+                    return "Please provide 'target' argument for `clip` API"
                 if "prompt" not in cmd["args"]:
-                    return "Please provide 'prompt' argument for `semanticSimilarityProb` API"
-                # Use semantic similarity and probability to decide which room to navigate to
-                return self.semanticSimilarityProb(
+                    return "Please provide 'prompt' argument for `clip` API"
+                # Use CLIP-based semantic similarity to decide which room to navigate to
+                return self.calculateUsingCLIP(
                     cmd["args"]["target"], cmd["args"]["prompt"]
                 )
             elif cmd["name"] == "update_egoview_info":
@@ -899,63 +900,6 @@ Respond with ONLY the room name (e.g., "bedroom", "kitchen", "living room").
             logger.error(f"Error in callLLM: {e}")
             return f"Failed to call LLM for room decision. Error: {str(e)}. Please use `goToRoom` or `search_object` instead."
     
-    def semanticSimilarityProb(self, target: str, prompt: str):
-        """
-        Use semantic similarity and probability calculations to decide which room to navigate to.
-        Combines object-room matching scores with statistical probabilities.
-        """
-        # Get available rooms
-        available_rooms = list(self.room_memory.keys()) if self.room_memory else []
-        if not available_rooms:
-            return "No rooms in memory yet. Please use `search_object` to explore and `update_room` to save room locations first."
-        
-        # Normalize target name
-        target_normalized = target.lower().strip()
-        
-        # Calculate match scores for each room
-        room_scores = {}
-        
-        for room in available_rooms:
-            # Get dictionary-based match score
-            dict_score = self._calculate_dictionary_match(target_normalized, room)
-            
-            # Get statistical match score (if statistics exist)
-            stat_score = self._calculate_statistical_match(room, target_normalized)
-            
-            # Combine scores (weighted combination)
-            # Dictionary: 0.6 weight, Statistics: 0.4 weight
-            total_score = (0.6 * dict_score) + (0.4 * stat_score)
-            
-            room_scores[room] = total_score
-        
-        # Find room with highest match score
-        if not room_scores or max(room_scores.values()) == 0:
-            return (
-                f"Could not calculate match scores for '{target}'. "
-                f"Available rooms: {', '.join(available_rooms)}. "
-                f"Please use `goToRoom`, `callLLM`, or `search_object` instead."
-            )
-        
-        best_room = max(room_scores.items(), key=lambda x: x[1])[0]
-        best_score = room_scores[best_room]
-        
-        # Navigate to best matching room
-        pose = self.room_memory[best_room]
-        dist, angle = self._grdview2egoview(pose)
-        
-        return_msg = self.process_goto_points(
-            points=[[dist, angle]], 
-            detect_on=True
-        )
-        
-        if "Already reached" in return_msg or "reached" in return_msg.lower():
-            return (
-                f"Semantic similarity probability suggests '{best_room}' (match score: {best_score:.2f}) for '{target}'. "
-                f"Successfully navigated. {return_msg} "
-                f"You can now use `detect_object` or `rotate(angle=360, detect_on=True)` to search for '{target}'."
-            )
-        return return_msg
-    
     def _calculate_dictionary_match(self, target: str, room: str) -> float:
         """
         Calculate dictionary-based match score between object and room.
@@ -989,43 +933,86 @@ Respond with ONLY the room name (e.g., "bedroom", "kitchen", "living room").
         # Room not in dictionary
         return 0.0
     
-    def _calculate_statistical_match(self, room: str, target: str) -> float:
+    def calculateUsingCLIP(self, target: str, prompt: str):
         """
-        Calculate statistical match score based on search history.
-        Returns score from 0.0 to 1.0, or 0.5 if no data exists.
+        CLIP-only room selection: score rooms, pick best, navigate.
         """
-        # Initialize statistics if not exists
-        if not hasattr(self, 'room_object_statistics'):
-            self.room_object_statistics = {}
-        
-        if room not in self.room_object_statistics:
-            self.room_object_statistics[room] = {}
-        
-        if target not in self.room_object_statistics[room]:
-            # No statistics yet - return neutral score
-            return 0.5
-        
-        stats = self.room_object_statistics[room][target]
-        
-        # Need minimum searches to trust statistics
-        if stats.get("total_searches", 0) < 3:
-            return 0.5  # Not enough data
-        
-        # Calculate probability from statistics
-        found_count = stats.get("found_count", 0)
-        total_searches = stats.get("total_searches", 0)
-        
-        if total_searches == 0:
-            return 0.5
-        
-        # Statistical match score = success rate
-        stat_score = found_count / total_searches
-        
-        # Apply confidence weighting (more searches = higher confidence)
-        confidence = min(1.0, total_searches / 10.0)  # Max confidence at 10+ searches
-        weighted_score = 0.5 + (stat_score - 0.5) * confidence
-        
-        return weighted_score
+        # Only operate over rooms already observed/stored
+        rooms = list(self.room_memory.keys()) if self.room_memory else []
+        if not rooms:
+            return "No rooms in memory yet. Please use `search_object` to explore and `update_room` to save room locations first."
+
+        # Normalize target to keep cache hits consistent
+        tgt = target.lower().strip()
+        # Score each room using CLIP text similarity (fall back to neutral 0.5)
+        scores = {room: (self._calculate_clip_room_match(room, tgt) or 0.5) for room in rooms}
+        if not scores or max(scores.values()) == 0:
+            return (
+                f"Could not calculate match scores for '{target}'. "
+                f"Available rooms: {', '.join(rooms)}. "
+                f"Please use `goToRoom`, `callLLM`, or `search_object` instead."
+            )
+
+        # Choose the best-scoring room and translate to navigation command
+        best_room, best_score = max(scores.items(), key=lambda x: x[1])
+        dist, angle = self._grdview2egoview(self.room_memory[best_room])
+
+        # Navigate with detection enabled so we can confirm while moving
+        return_msg = self.process_goto_points(points=[[dist, angle]], detect_on=True)
+        if "Already reached" in return_msg or "reached" in return_msg.lower():
+            return (
+                f"CLIP similarity suggests '{best_room}' (score: {best_score:.2f}) for '{target}'. "
+                f"Successfully navigated. {return_msg} "
+                f"You can now use `detect_object` or `rotate(angle=360, detect_on=True)` to search for '{target}'."
+            )
+        return return_msg
+
+    def _calculate_clip_room_match(self, room: str, target: str) -> Optional[float]:
+        """
+        Use CLIP text embeddings to gauge similarity between the target object and a room label.
+        Returns None if CLIP is unavailable or embedding fails.
+        """
+        clip_model = getattr(getattr(self, "map_search", None), "clip_model", None)
+        if clip_model is None:
+            return None
+
+        # Cache text embeddings to avoid repeated encoder calls
+        cache = getattr(self, "_clip_text_cache", None)
+        if cache is None:
+            cache = {}
+            self._clip_text_cache = cache
+
+        def _encode(text: str) -> Optional[torch.Tensor]:
+            key = text.strip().lower()
+            if key in cache:
+                return cache[key]
+            try:
+                emb = clip_model.encode_text([text])
+                if isinstance(emb, torch.Tensor):
+                    emb = emb.detach().float()
+                    if emb.ndim > 1:
+                        emb = emb.squeeze(0)
+                    emb = emb / emb.norm(dim=-1, keepdim=True).clamp(min=1e-6)
+                    emb = emb.cpu()
+                cache[key] = emb
+                return emb
+            except Exception as e:
+                logger.error(f"CLIP text encoding failed for '{text}': {e}")
+                return None
+
+        # Get normalized embeddings for room and target
+        room_emb = _encode(room)
+        target_emb = _encode(target)
+        if room_emb is None or target_emb is None:
+            return None
+
+        try:
+            # Cosine similarity mapped to [0, 1] range for scoring
+            sim = torch.dot(target_emb, room_emb).item()
+            return max(0.0, min(1.0, (sim + 1.0) / 2.0))
+        except Exception as e:
+            logger.error(f"CLIP similarity failed for room '{room}' and target '{target}': {e}")
+            return None
    
     def goToRoom(self, target: str, prompt: str):
         """

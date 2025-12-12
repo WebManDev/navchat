@@ -166,8 +166,3 @@ images
 sandbox
 
 .vscode/
-
-# Environment variables
-.env
-.env.local
-.env.*.local

@@ -199,7 +199,7 @@ FUNCTIONS = [
     },
     {
         "name": "search_object",
-        "description": "use the frontier-based exploration to search the object systematically. Use this when you need thorough exploration or when other methods (goToRoom, callLLM, semanticSimilarityProb) are not suitable. One of four search options: goToRoom (dictionary), callLLM (reasoning), semanticSimilarityProb (statistics), search_object (exploration). Issuing this command again can continue the searching.",
+        "description": "use the frontier-based exploration to search the object systematically. Use this when you need thorough exploration or when other methods (goToRoom, callLLM, clip) are not suitable. One of four search options: goToRoom (dictionary), callLLM (reasoning), clip (CLIP), search_object (exploration). Issuing this command again can continue the searching.",
         "parameters": {
             "type": "object",
             "properties": {
@@ -217,7 +217,7 @@ FUNCTIONS = [
     },
     {
         "name": "goToRoom",
-        "description": "navigate to the room where the target object is likely located using dictionary-based matching. Use this when the object is in the dictionary and you have room locations in memory. This is faster than search_object but requires room knowledge. One of four search options: goToRoom (dictionary), callLLM (reasoning), semanticSimilarityProb (statistics), search_object (exploration).",
+        "description": "navigate to the room where the target object is likely located using dictionary-based matching. Use this when the object is in the dictionary and you have room locations in memory. This is faster than search_object but requires room knowledge. One of four search options: goToRoom (dictionary), callLLM (reasoning), clip (CLIP), search_object (exploration).",
         "parameters": {
             "type": "object",
             "properties": {
@@ -235,7 +235,7 @@ FUNCTIONS = [
     },
     {
         "name": "callLLM",
-        "description": "call the Deepseek LLM to get information about what room the target object is likely located. Use this when you need LLM reasoning to make context-aware decisions. One of four search options: goToRoom (dictionary), callLLM (reasoning), semanticSimilarityProb (statistics), search_object (exploration).",
+        "description": "call the Deepseek LLM to get information about what room the target object is likely located. Use this when you need LLM reasoning to make context-aware decisions. One of four search options: goToRoom (dictionary), callLLM (reasoning), clip (CLIP), search_object (exploration).",
         "parameters": {
             "type": "object",
             "properties": {
@@ -252,8 +252,8 @@ FUNCTIONS = [
         "required": ["target", "prompt"],
     },
     {
-        "name": "semanticSimilarityProb",
-        "description": "use semantic similarity and probability calculations to determine which room to navigate to. Combines object-room matching scores with statistical probabilities for data-driven room selection. Use this when you have search history and want probability-based decisions. One of four search options: goToRoom (dictionary), callLLM (reasoning), semanticSimilarityProb (statistics), search_object (exploration).",
+        "name": "clip",
+        "description": "use CLIP text similarity between the target and room labels to choose a room, then navigate there. Returns a neutral score when CLIP is unavailable. One of four search options: goToRoom (dictionary), callLLM (reasoning), clip (CLIP), search_object (exploration).",
         "parameters": {
             "type": "object",
             "properties": {
