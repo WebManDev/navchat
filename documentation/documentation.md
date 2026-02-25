@@ -15,9 +15,11 @@ It's made in the scripts/build_vlmap.py file, which makes it per scene. It's als
 
 
 
-More documentation about custom functions (NOT WORKING YET... Need to tailor to current dataset and need to be tested heavily.)
+More documentation about custom functions (now using scene data from final.json)
 orion/agent_env/chatgpt_control_orion.py is the location. 
 
-For calculateUsingCLIP, it's basically picking the room based on using CLIP embeddings. For goToRoom, it uses a dictionary to match the desired object to the room to see which room the robot should go to. Lastly, for call LLM, an api call to ChatGPT occurs and the LLM decides which room to go to. 
+Data source: orion/user_simulator/goals/<scene_id>/final.json provides per-scene object→room mapping. Falls back to OBJECT_TO_ROOMS in my_config.py when final.json is unavailable.
 
-I think now that I've figured out where the existing data is, I could potentially make these "custom functions" work. But it'll definitely take some time to test and re-implement. 
+For calculateUsingCLIP, it picks the room using CLIP embeddings, with a boost for rooms that contain the target according to final.json. For goToRoom, it uses the object→room mapping from final.json (or OBJECT_TO_ROOMS fallback) to determine which room to navigate to. For callLLM, an API call to ChatGPT occurs with scene-based room suggestions, and the LLM decides which room to go to. 
+
+Going to ORION/config/myconfig.py, the number grid is 600, whilst the height is 40 voxels. and the cell size is .05 meters. So for the 2D occupancy map, it's 30x30m and for 3D VLMap voxel grid, it's 30x30x2

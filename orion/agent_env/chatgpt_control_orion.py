@@ -1,9 +1,10 @@
 import copy
 import itertools
 import json
+import os
 import re
 import uuid
-from typing import Any, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 import torch
 
 import cv2
@@ -839,6 +840,80 @@ class ChatGPTControlORION(ChatGPTControlBase):
         return_tuple_list_str = json.dumps(return_tuple_list).replace('"', "")
         return_msg = f"Update current ego-view information: {return_tuple_list_str}"
         return return_msg
+
+    def _load_scene_object_room_mapping(self) -> Optional[Dict[str, List[str]]]:
+        """
+        Load object->room mapping from orion/user_simulator/goals/<scene_id>/final.json.
+        Returns dict mapping object base name (e.g. 'sofa', 'tv') to list of room names.
+        Returns None if scene_id unavailable or file does not exist.
+        Result is cached for the lifetime of the instance.
+        """
+        cache_attr = "_scene_object_room_mapping_cache"
+        if hasattr(self, cache_attr):
+            return getattr(self, cache_attr)
+        scene_id = getattr(self, "scene_id", None)
+        if not scene_id:
+            setattr(self, cache_attr, None)
+            return None
+        final_path = f"orion/user_simulator/goals/{scene_id}/final.json"
+        if not os.path.isfile(final_path):
+            logger.debug(f"Scene goals file not found: {final_path}")
+            setattr(self, cache_attr, None)
+            return None
+        try:
+            with open(final_path) as f:
+                data = json.load(f)
+        except Exception as e:
+            logger.warning(f"Failed to load {final_path}: {e}")
+            setattr(self, cache_attr, None)
+            return None
+        mapping: Dict[str, List[str]] = {}
+        for key, val in data.items():
+            if key == "room_info" or not isinstance(val, dict):
+                continue
+            room_id = val.get("room_id")
+            if not room_id:
+                continue
+            room_name = re.sub(r"_\d+$", "", room_id)
+            base_name = re.sub(r"_\d+$", "", key)
+            base_name_lower = base_name.lower()
+            if base_name_lower not in mapping:
+                mapping[base_name_lower] = []
+            if room_name not in mapping[base_name_lower]:
+                mapping[base_name_lower].append(room_name)
+        result = mapping if mapping else None
+        setattr(self, cache_attr, result)
+        return result
+
+    def _get_object_rooms_from_scene(self, target: str) -> List[str]:
+        """
+        Get rooms where target object is located. Uses final.json when available,
+        falls back to OBJECT_TO_ROOMS otherwise.
+        """
+        target_normalized = target.lower().strip()
+        alias_map = {
+            "television": "tv",
+            "couch": "sofa",
+            "fridge": "refrigerator",
+        }
+        lookup_target = alias_map.get(target_normalized, target_normalized)
+        mapping = self._load_scene_object_room_mapping()
+        if mapping:
+            rooms = mapping.get(lookup_target)
+            if not rooms and lookup_target.endswith("s"):
+                rooms = mapping.get(lookup_target[:-1])
+            elif not rooms and not lookup_target.endswith("s"):
+                rooms = mapping.get(lookup_target + "s")
+            if rooms:
+                return rooms
+        rooms = OBJECT_TO_ROOMS.get(target_normalized, [])
+        if not rooms:
+            if target_normalized.endswith("s"):
+                rooms = OBJECT_TO_ROOMS.get(target_normalized[:-1], [])
+            else:
+                rooms = OBJECT_TO_ROOMS.get(target_normalized + "s", [])
+        return rooms
+
     def callLLM(self, target: str, prompt: str):
         from orion.chatgpt.api import ChatAPI
         
@@ -846,8 +921,7 @@ class ChatGPTControlORION(ChatGPTControlBase):
         if not available_rooms:
             return "No rooms in memory yet. Please use `search_object` to explore and `update_room` to save room locations first."
         
-        target_normalized = target.lower().strip()
-        dict_suggestions = OBJECT_TO_ROOMS.get(target_normalized, [])
+        dict_suggestions = self._get_object_rooms_from_scene(target)
         
         llm_prompt = f"""
 You are helping a robot navigate to find an object.
@@ -904,16 +978,9 @@ Respond with ONLY the room name (e.g., "bedroom", "kitchen", "living room").
         """
         Calculate dictionary-based match score between object and room.
         Returns score from 0.0 to 1.0.
+        Uses scene final.json when available, else OBJECT_TO_ROOMS.
         """
-        # Get dictionary suggestions for this object
-        dict_rooms = OBJECT_TO_ROOMS.get(target, [])
-        
-        # Try singular/plural variations
-        if not dict_rooms:
-            if target.endswith('s'):
-                dict_rooms = OBJECT_TO_ROOMS.get(target[:-1], [])
-            else:
-                dict_rooms = OBJECT_TO_ROOMS.get(target + 's', [])
+        dict_rooms = self._get_object_rooms_from_scene(target)
         
         # If room is in dictionary list, calculate score
         if room in dict_rooms:
@@ -936,6 +1003,7 @@ Respond with ONLY the room name (e.g., "bedroom", "kitchen", "living room").
     def calculateUsingCLIP(self, target: str, prompt: str):
         """
         CLIP-only room selection: score rooms, pick best, navigate.
+        Uses scene final.json when available to boost rooms that contain the target.
         """
         # Only operate over rooms already observed/stored
         rooms = list(self.room_memory.keys()) if self.room_memory else []
@@ -944,8 +1012,15 @@ Respond with ONLY the room name (e.g., "bedroom", "kitchen", "living room").
 
         # Normalize target to keep cache hits consistent
         tgt = target.lower().strip()
+        scene_rooms = self._get_object_rooms_from_scene(target)
         # Score each room using CLIP text similarity (fall back to neutral 0.5)
-        scores = {room: (self._calculate_clip_room_match(room, tgt) or 0.5) for room in rooms}
+        scores = {}
+        for room in rooms:
+            clip_score = self._calculate_clip_room_match(room, tgt) or 0.5
+            # Boost rooms that contain the target according to scene data
+            if scene_rooms and room in scene_rooms:
+                clip_score = min(1.0, clip_score + 0.3)
+            scores[room] = clip_score
         if not scores or max(scores.values()) == 0:
             return (
                 f"Could not calculate match scores for '{target}'. "
@@ -1017,20 +1092,10 @@ Respond with ONLY the room name (e.g., "bedroom", "kitchen", "living room").
     def goToRoom(self, target: str, prompt: str):
         """
         Navigate to the room where the target object is likely located.
-        Uses OBJECT_TO_ROOMS dictionary to determine which room to go to.
+        Uses orion/user_simulator/goals/<scene_id>/final.json when available,
+        else falls back to OBJECT_TO_ROOMS dictionary.
         """
-        # Normalize target name (lowercase, handle plurals)
-        target_normalized = target.lower().strip()
-        
-        # Look up object in dictionary
-        likely_rooms = OBJECT_TO_ROOMS.get(target_normalized, [])
-        
-        # If not found, try singular/plural variations
-        if not likely_rooms:
-            if target_normalized.endswith('s'):
-                likely_rooms = OBJECT_TO_ROOMS.get(target_normalized[:-1], [])
-            else:
-                likely_rooms = OBJECT_TO_ROOMS.get(target_normalized + 's', [])
+        likely_rooms = self._get_object_rooms_from_scene(target)
         
         # If still not found, return error message
         if not likely_rooms:
